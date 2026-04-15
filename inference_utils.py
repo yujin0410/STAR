@@ -84,6 +84,20 @@ def load_video(vid_path):
     return frame_list, _fps
 
 
+def save_frames(video, save_dir, ext='png', start_idx=0, num_digits=4):
+    """Save each output frame as an individual image.
+
+    Output layout: ``<save_dir>/<start_idx + i zero-padded>.ext``.
+    This matches the UDM10 GT frame layout so PSNR/SSIM evaluation
+    tools can compare outputs against the ground truth directly.
+    """
+    os.makedirs(save_dir, exist_ok=True)
+    images = [(img.numpy()).astype('uint8') for img in video]
+    for fid, frame in enumerate(images):
+        out_path = os.path.join(save_dir, f'{fid + start_idx:0{num_digits}d}.{ext}')
+        cv2.imwrite(out_path, frame[:, :, ::-1])
+
+
 def save_video(video, save_dir, file_name, fps=16.0):
     output_path = os.path.join(save_dir, file_name)
     images = [(img.numpy()).astype('uint8') for img in video]

@@ -17,6 +17,11 @@ VIDEO_DIR="${VIDEO_DIR:-/mnt/HDD_raid1/yjcho/data/UDM10/LQ-Video}"
 TXT_FILE="${TXT_FILE:-./input/text/udm10_prompts.txt}"
 MODEL_PATH="${MODEL_PATH:-./pretrained_weight/model.pt}"
 SAVE_DIR="${SAVE_DIR:-./results/udm10}"
+# Per-sequence PNG frames land in ${FRAME_DIR}/<seq_name>/, matching the
+# UDM10 GT layout so PSNR/SSIM evaluators can compare them directly.
+FRAME_DIR="${FRAME_DIR:-/mnt/HDD_raid1/yjcho/star_udm10}"
+# By default, skip writing the result MP4 (evaluation only needs the PNGs).
+SKIP_VIDEO="${SKIP_VIDEO:-1}"
 
 # -------- Inference hyper-parameters --------
 FRAME_LENGTH="${FRAME_LENGTH:-32}"   # lower if you hit OOM (e.g. 16)
@@ -39,7 +44,7 @@ if [ ! -f "${MODEL_PATH}" ]; then
     exit 1
 fi
 
-mkdir -p "${SAVE_DIR}"
+mkdir -p "${SAVE_DIR}" "${FRAME_DIR}"
 
 # Collect MP4 files in sorted order so the line-to-video matching is deterministic.
 mapfile -t mp4_files < <(find "${VIDEO_DIR}" -maxdepth 1 -type f -name "*.mp4" | sort)
@@ -61,20 +66,30 @@ for i in "${!mp4_files[@]}"; do
 
     echo "==============================================================="
     echo "[$((i+1))/${#mp4_files[@]}] ${mp4_file}"
-    echo "  prompt: ${line}"
-    echo "  out   : ${SAVE_DIR}/${file_name}.mp4"
+    echo "  prompt : ${line}"
+    echo "  frames : ${FRAME_DIR}/${file_name}/"
+    if [ "${SKIP_VIDEO}" != "1" ]; then
+        echo "  mp4    : ${SAVE_DIR}/${file_name}.mp4"
+    fi
     echo "==============================================================="
 
-    python ./video_super_resolution/scripts/inference_sr.py \
-        --solver_mode "${SOLVER_MODE}" \
-        --steps "${STEPS}" \
-        --input_path "${mp4_file}" \
-        --model_path "${MODEL_PATH}" \
-        --prompt "${line}" \
-        --upscale "${UPSCALE}" \
-        --max_chunk_len "${FRAME_LENGTH}" \
-        --file_name "${file_name}.mp4" \
+    cmd=(
+        python ./video_super_resolution/scripts/inference_sr.py
+        --solver_mode "${SOLVER_MODE}"
+        --steps "${STEPS}"
+        --input_path "${mp4_file}"
+        --model_path "${MODEL_PATH}"
+        --prompt "${line}"
+        --upscale "${UPSCALE}"
+        --max_chunk_len "${FRAME_LENGTH}"
+        --file_name "${file_name}.mp4"
         --save_dir "${SAVE_DIR}"
+        --frame_save_dir "${FRAME_DIR}"
+    )
+    if [ "${SKIP_VIDEO}" = "1" ]; then
+        cmd+=(--skip_video)
+    fi
+    "${cmd[@]}"
 done
 
 echo "All UDM10 videos processed. Results: ${SAVE_DIR}"

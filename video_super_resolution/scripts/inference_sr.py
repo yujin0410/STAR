@@ -19,7 +19,7 @@ logger = get_logger()
 
 
 class STAR():
-    def __init__(self, 
+    def __init__(self,
                  result_dir='./results/',
                  file_name='000_video.mp4',
                  model_path='',
@@ -28,13 +28,20 @@ class STAR():
                  guide_scale=7.5,
                  upscale=4,
                  max_chunk_len=32,
+                 frame_save_dir=None,
+                 skip_video=False,
                  ):
         self.model_path=model_path
         logger.info('checkpoint_path: {}'.format(self.model_path))
 
         self.result_dir = result_dir
         self.file_name = file_name
-        os.makedirs(self.result_dir, exist_ok=True)
+        self.frame_save_dir = frame_save_dir
+        self.skip_video = skip_video
+        if not skip_video:
+            os.makedirs(self.result_dir, exist_ok=True)
+        if self.frame_save_dir is not None:
+            os.makedirs(self.frame_save_dir, exist_ok=True)
 
         model_cfg = EasyDict(__name__='model_cfg')
         model_cfg.model_path = self.model_path
@@ -80,8 +87,16 @@ class STAR():
         # Using color fix
         output = adain_color_fix(output, video_data)
 
-        save_video(output, self.result_dir, self.file_name, fps=input_fps)
-        return os.path.join(self.result_dir, self.file_name)
+        if self.frame_save_dir is not None:
+            seq_name = os.path.splitext(self.file_name)[0]
+            seq_dir = os.path.join(self.frame_save_dir, seq_name)
+            save_frames(output, seq_dir)
+            logger.info('saved {} frames to {}'.format(len(output), seq_dir))
+
+        if not self.skip_video:
+            save_video(output, self.result_dir, self.file_name, fps=input_fps)
+            return os.path.join(self.result_dir, self.file_name)
+        return None
     
 
 def parse_args():
@@ -98,6 +113,13 @@ def parse_args():
     parser.add_argument("--cfg", type=float, default=7.5)
     parser.add_argument("--solver_mode", type=str, default='fast', help='fast | normal')
     parser.add_argument("--steps", type=int, default=15)
+
+    parser.add_argument("--frame_save_dir", type=str, default=None,
+                        help="If set, save each output frame as PNG under "
+                             "<frame_save_dir>/<basename(file_name)>/")
+    parser.add_argument("--skip_video", action='store_true',
+                        help="Do not write the result MP4 (useful when only "
+                             "per-frame PNGs are needed for evaluation).")
 
     return parser.parse_args()
 
@@ -128,6 +150,8 @@ def main():
                 guide_scale=guide_scale,
                 upscale=upscale,
                 max_chunk_len=max_chunk_len,
+                frame_save_dir=args.frame_save_dir,
+                skip_video=args.skip_video,
                 )
 
     star.enhance_a_video(input_path, prompt)
