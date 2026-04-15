@@ -10,7 +10,16 @@
 # Override paths/options with env vars, e.g.:
 #   VIDEO_DIR=/other/path MODEL_PATH=/weights/light_deg.pt \
 #       bash video_super_resolution/scripts/inference_sr_udm10.sh
+#
+# Select a specific GPU with ``GPU=<index>`` (default: 1). The inference
+# code hard-codes ``cuda:0``, so this works by remapping the physical
+# device through CUDA_VISIBLE_DEVICES.
 set -euo pipefail
+
+# -------- GPU selection --------
+GPU="${GPU:-1}"
+export CUDA_VISIBLE_DEVICES="${GPU}"
+echo "Using GPU: CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}"
 
 # -------- User-configurable paths --------
 VIDEO_DIR="${VIDEO_DIR:-/mnt/HDD_raid1/yjcho/data/UDM10/LQ-Video}"
