@@ -12,7 +12,7 @@ set -euo pipefail
 SRC="${SRC:-/mnt/HDD_raid1/yjcho/data/UDM10/BIx4}"
 DST="${DST:-/mnt/HDD_raid1/yjcho/data/UDM10/LQ-Video}"
 FPS="${FPS:-25}"
-CRF="${CRF:-0}"
+CRF="${CRF:-17}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

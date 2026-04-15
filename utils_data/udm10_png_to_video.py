@@ -54,14 +54,19 @@ def convert(frames_dir: Path, out_path: Path, fps: int, crf: int) -> None:
     pattern, start, n_frames = detect_pattern(frames_dir)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # ``-vf format=rgb24`` forces ffmpeg to decode every PNG to 8-bit RGB
+    # BEFORE the yuv420p conversion. Without it, 16-bit PNGs (which some
+    # UDM10 distributions ship) or RGBA PNGs can end up saturated to white
+    # after going through libx264's default color pipeline.
     cmd = [
         "ffmpeg", "-y",
         "-framerate", str(fps),
         "-start_number", str(start),
         "-i", str(frames_dir / pattern),
         "-frames:v", str(n_frames),
+        "-vf", "format=rgb24",
         "-c:v", "libx264",
-        "-preset", "veryslow",
+        "-preset", "medium",
         "-crf", str(crf),
         "-pix_fmt", "yuv420p",
         str(out_path),
@@ -82,8 +87,9 @@ def parse_args():
                         help="Output directory for the generated MP4 files")
     parser.add_argument("--fps", type=int, default=25,
                         help="Frame rate of the generated videos (default: 25)")
-    parser.add_argument("--crf", type=int, default=0,
-                        help="x264 CRF; 0 = lossless luma, 17 = visually lossless (default: 0)")
+    parser.add_argument("--crf", type=int, default=17,
+                        help="x264 CRF; 0 = lossless (yuv420p can misbehave), "
+                             "17 = visually lossless and robust (default: 17)")
     return parser.parse_args()
 
 
